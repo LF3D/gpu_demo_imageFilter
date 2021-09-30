@@ -1,5 +1,5 @@
 //
-// Created by lf on 21-7-2.
+// Created by liyang on 21-7-2.
 //
 
 #ifndef ANDROID_PRJ_GPUIMAGETEXTFILTER_H
@@ -11,7 +11,7 @@
 
 #include <freetype/ftglyph.h>
 
-#define DEFAULT_OGL_ASSETS_DIR "/sdcard/Download"
+#define DEFAULT_OGL_ASSETS_DIR "../"
 
 struct Character {
     GLuint textureID;   // ID handle of the glyph texture

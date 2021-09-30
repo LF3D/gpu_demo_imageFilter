@@ -33,24 +33,30 @@
 #include "GPUImageNormalBlendFilter.h"
 
 int main(const int argc, const char *argv[]){
-    RenderImage m_RenderImage;
+    RenderImage image, logo; int m_XAngle = 0, frameNums = 0;
     cv::Mat inputImage = cv::imread("../test.png", 1);
     
-    memset(&m_RenderImage, 0, sizeof(m_RenderImage));
-    m_RenderImage.format = IMAGE_FORMAT_RGBA;
-    m_RenderImage.width = inputImage.cols;
-    m_RenderImage.height = inputImage.rows;
-    RenderImageUtil::allocRenderImage(&m_RenderImage);
-    // memcpy(m_RenderImage.planes[0], inputImage.data, inputImage.cols * inputImage.rows * 4);
+    memset(&image, 0, sizeof(image));
+    image.format = IMAGE_FORMAT_RGBA;
+    image.width = inputImage.cols;
+    image.height = inputImage.rows;
+    RenderImageUtil::allocRenderImage(&image);
     for(int i = 0; i < inputImage.rows; i++) {
         for(int j = 0; j < inputImage.cols; j++) {
-            m_RenderImage.planes[0][i * inputImage.cols * 4 + j * 4] = inputImage.data[i * inputImage.cols * 3 + j * 3 + 2];
-            m_RenderImage.planes[0][i * inputImage.cols * 4 + j * 4 + 1] = inputImage.data[i * inputImage.cols * 3 + j * 3 + 1];
-            m_RenderImage.planes[0][i * inputImage.cols * 4 + j * 4 + 2] = inputImage.data[i * inputImage.cols * 3 + j * 3 + 0];
-            m_RenderImage.planes[0][i * inputImage.cols * 4 + j * 4 + 3] = 255;
+            image.planes[0][i * inputImage.cols * 4 + j * 4] = inputImage.data[i * inputImage.cols * 3 + j * 3 + 2];
+            image.planes[0][i * inputImage.cols * 4 + j * 4 + 1] = inputImage.data[i * inputImage.cols * 3 + j * 3 + 1];
+            image.planes[0][i * inputImage.cols * 4 + j * 4 + 2] = inputImage.data[i * inputImage.cols * 3 + j * 3 + 0];
+            image.planes[0][i * inputImage.cols * 4 + j * 4 + 3] = 255;
         }
     }
-    RenderImageUtil::dumpRenderImage(&m_RenderImage, "/home/nickli/desktop", "IMG");
+
+    cv::Mat smallImage = cv::imread("../baidu.png", -1);
+    memset(&logo, 0, sizeof(logo));
+    logo.format = IMAGE_FORMAT_RGBA;
+    logo.width = smallImage.cols;
+    logo.height = smallImage.rows;
+    RenderImageUtil::allocRenderImage(&logo);
+    memcpy(logo.planes[0], smallImage.data, smallImage.cols * smallImage.rows * 4);
 
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
@@ -59,21 +65,32 @@ int main(const int argc, const char *argv[]){
     GLFWwindow *window = glfwCreateWindow(inputImage.cols / 2, inputImage.rows / 2, __FILE__, NULL, NULL);
     glfwMakeContextCurrent(window);
 
-    GPUImageRenderer *m_GPUImageRenderer;
+    float scaleX = logo.width * 1.0f / image.width;
+    float scaleY = logo.height * 1.0f / image.width;
 
+    GPUImageRenderer *renderer;
     GPUImageFilterGroup *filterGroup = new GPUImageFilterGroup();
-    // Add your filters
     filterGroup->addFilter(new GPUImageRGBFilter(1.0f, 1.0f, 1.0f));
-    filterGroup->addFilter(new GPUImageSharpenFilter(0.2f));
-    m_GPUImageRenderer = new GPUImageRenderer(filterGroup);
+    filterGroup->addFilter(new GPUImageGaussianBlurFilter(1));
+    GPUImageNormalBlendFilter *blendFliter = new GPUImageNormalBlendFilter();
+    filterGroup->addFilter(blendFliter);
+    blendFliter->setRenderImage(&logo);
+    GPUImageTextFilter *textFilter = new GPUImageTextFilter();
+    filterGroup->addFilter(textFilter);
+    renderer = new GPUImageRenderer(filterGroup);
 
-
-    m_GPUImageRenderer->onSurfaceCreated();
-    m_GPUImageRenderer->onSurfaceChanged(m_RenderImage.width / 2, m_RenderImage.height / 2);
+    renderer->onSurfaceCreated();
+    renderer->onSurfaceChanged(image.width / 2, image.height / 2);
+    renderer->setRenderImage(&image);
+    char info[256];
+    std::string tmpStr = "";
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        m_GPUImageRenderer->setRenderImage(&m_RenderImage);
-        m_GPUImageRenderer->onDrawFrame();
+        m_XAngle += 2; frameNums++;
+        blendFliter->UpdateMVPMatrix( -0.8, -0.9, 0, m_XAngle, scaleY, scaleY);
+        sprintf(info, "Frame: (%d, %d) idd: %d ", image.width, image.height, frameNums);
+        textFilter->setMString(std::string(info));
+        renderer->onDrawFrame();
         glfwSwapBuffers(window);
     }
     glfwTerminate();
